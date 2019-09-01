@@ -1,0 +1,13 @@
+[Unit]
+Description=Tattle
+After=multi-user.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/tattle-phone/
+ExecStart=/usr/bin/python /home/pi/tattle-phone/tattle.py
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
