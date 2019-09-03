@@ -1,3 +1,11 @@
+# Reference doc: https://www.raspberrypi.org/forums/viewtopic.php?t=197513#p1247341
+
+# sudo cp tattle.service /etc/systemd/system/tattle.service
+# sudo chmod 644 /etc/systemd/system/tattle.service
+# sudo systemctl daemon-reload
+# sudo systemctl enable tattle.service
+# sudo systemctl start tattle.service
+
 [Unit]
 Description=Tattle
 After=multi-user.target
@@ -7,6 +15,7 @@ Type=simple
 WorkingDirectory=/home/pi/tattle-phone/
 ExecStart=/usr/bin/python /home/pi/tattle-phone/tattle.py
 Restart=always
+RestartSec=10
 User=pi
 
 [Install]
