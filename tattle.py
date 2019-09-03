@@ -14,9 +14,8 @@ import botocore
 from sound_recorder import SoundRecorder
 from datetime import datetime
 from tempfile import mkstemp
+from slacker import IncomingWebhook
 
-##https://learn.adafruit.com/running-programs-automatically-on-your-tiny-computer/systemd-writing-and-enabling-a-service
-##https://www.raspberrypi.org/forums/viewtopic.php?t=37873
 
 file_log_format = '%(asctime)s  %(levelname)s  %(message)s'
 console_log_format = file_log_format
@@ -62,7 +61,9 @@ def main():
                 handset_pin = cfg["handset"]["handset_pin"]
                 led_pin = cfg["recording"]["led_pin"]
 
-                ##TODO CHRIS validate handset_pin?
+                if not handset_pin:
+                    logger.error("Handset pin not configured")
+                    return
         except Exception:
             logger.exception("Config read error")
             return
@@ -115,11 +116,11 @@ def is_phone_off_hook():
     return not GPIO.input(handset_pin)
 
 
-##TODO CHRIS SERVICE details- https://www.raspberrypi.org/forums/viewtopic.php?t=197513
 ##TODO CHRIS Encode to MP3 if it makes sense (currently doesn't)
-##TODO CHRIS send an e-mail? slack?
+##TODO CHRIS move from path aws credentials to yaml settings
 ##TODO CHRIS https://www.instructables.com/id/Disable-the-Built-in-Sound-Card-of-Raspberry-Pi/
 ##TODO CHRIS https://aws.amazon.com/blogs/database/indexing-metadata-in-amazon-elasticsearch-service-using-aws-lambda-and-python/
+##TODO CHRIS Doc disabling built-in audio - https://www.raspberrypi.org/forums/viewtopic.php?t=37873
 def capture_audio():
     rec_tmp_file_path = None
 
@@ -138,9 +139,12 @@ def capture_audio():
                 'rec_filename' : rec_filename,
                 'timestamp' : datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
                 'rec_url' : None,
+                'rec_public_url' : None,
+                'rec_duration' : None,
                 'transcript_url' : None,
                 'transcript' : None,
                 'sentiment' : None,
+                'key_phrases' : [],
             }
 
         with SoundRecorder(rec_tmp_file_path) as rec:
@@ -183,7 +187,9 @@ def capture_audio():
     	    logger.info("Stopping recording")
     	    rec.stop_recording()
             adjust_recording_led(False)
-            logger.info("Recording finished - Duration: " + str(rec.get_duration()))
+            duration = rec.get_duration()
+            tattle_props["rec_duration"] = duration
+            logger.info("Recording finished - Duration: " +  str(round(duration, 2)))
 
             t = threading.Thread(
                 target=post_capture_processing,
@@ -225,22 +231,29 @@ def post_capture_processing(tattle_props, base_name, rec_filename, rec_tmp_file_
         s3URLStyle = s3_config["URLStyle"]
         s3ComprehendRegion = s3_config["ComprehendRegion"]
 
+        logger.info("Uploading recording to S3: " + rec_filename)
         s3_url = upload_to_s3(rec_filename, rec_tmp_file_path, s3Bucket, s3URLStyle)
         if s3_url:
             tattle_props['rec_url'] = s3_url
 
+            s3_public_url = get_s3_presigned_url(rec_filename, s3Bucket)
+            if s3_public_url:
+                tattle_props['rec_public_url'] = s3_public_url
+
         upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
 
-        ##TODO CHRIS add checks to enable/disable
-        transcription = transcribe_recording(transcript_filename, transcript_tmp_file_path, s3_url, s3Bucket, tattle_props)
-        if transcription and len(transcription) > 0:
-            upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
+        if cfg["text_analysis"]["transcription"]:
+            transcription = transcribe_recording(transcript_filename, transcript_tmp_file_path, s3_url, s3Bucket, tattle_props)
+            if transcription and len(transcription) > 0:
+                upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
 
-        ##TODO CHRIS add checks to enable/disable
-        if analyze_sentiment(tattle_props, transcription, s3ComprehendRegion):
-            upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
+            if analyze_text(tattle_props, transcription, s3ComprehendRegion):
+                upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
+
+        send_slack_msg(tattle_props)
 
     	logger.info("Finished post-recording work")
+        logger.info("Final summary JSON document: \n" + json.dumps(tattle_props, sort_keys=True, indent=4))
     except Exception:
         logger.exception("Post-processing exception")
     finally:
@@ -255,6 +268,8 @@ def upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Buck
     with open(props_tmp_file_path, 'w') as out_file:
         out_file.write(json.dumps(tattle_props, sort_keys=True, indent=4))
 
+    logger.info("Uploading tattle summary JSON document to S3: " + props_filename)
+
     upload_to_s3(props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
 
 def upload_to_s3(upload_filename, local_file_path, s3Bucket, s3URLStyle):
@@ -264,7 +279,8 @@ def upload_to_s3(upload_filename, local_file_path, s3Bucket, s3URLStyle):
         s3_upload_start = time.time()
 
         s3_client = boto3.client('s3')
-        s3UploadRsp = s3_client.upload_file(local_file_path, s3Bucket, upload_filename, ExtraArgs={'ACL': 'public-read'})
+        s3UploadRsp = s3_client.upload_file(local_file_path, s3Bucket, upload_filename)
+        ##s3UploadRsp = s3_client.upload_file(local_file_path, s3Bucket, upload_filename, ExtraArgs={'ACL': 'public-read'})
 
         logger.info("S3 upload response: " + str(s3UploadRsp))
         s3_upload_elapsed = time.time() - s3_upload_start
@@ -280,6 +296,28 @@ def upload_to_s3(upload_filename, local_file_path, s3Bucket, s3URLStyle):
 
         logger.info("S3 URL: " + s3_url)
         return s3_url
+    except botocore.exceptions.ClientError as ce:
+        logger.exception("AWS S3 upload error (ClientError)")
+    except Exception:
+        logger.exception("AWS S3 upload error (Generic)")
+
+def get_s3_presigned_url(filename, s3Bucket):
+    try:
+        logger.info("Fetching S3 presigned URL for: " + filename)
+
+        s3_start = time.time()
+
+        s3_client = boto3.client('s3')
+        s3PresignedUrlRsp = s3_client.generate_presigned_url('get_object', Params={'Bucket': s3Bucket, 'Key': filename}, ExpiresIn=604800)
+
+        logger.info("S3 presigned URL response: " + str(s3PresignedUrlRsp))
+        s3_elapsed = time.time() - s3_start
+        logger.info("S3 presigned URL retrieved in "
+            + str(round(s3_elapsed, 2))
+            + " seconds"
+        )
+
+        return s3PresignedUrlRsp
     except botocore.exceptions.ClientError as ce:
         logger.exception("AWS S3 upload error (ClientError)")
     except Exception:
@@ -350,7 +388,7 @@ def transcribe_recording(transcript_name, transcript_file_path, s3_url, s3Bucket
 
     return None
 
-def analyze_sentiment(tattle_props, transcript, s3ComprehendRegion):
+def analyze_text(tattle_props, transcript, s3ComprehendRegion):
     if not transcript:
         return False
         
@@ -363,26 +401,143 @@ def analyze_sentiment(tattle_props, transcript, s3ComprehendRegion):
         logger.info("Skipping sentiment analysis as no AWS comprehend region has been configured")
         return False
 
-    logger.info("Starting sentiment analysis...")
-    s3_sentiment_start = time.time()
+    logger.info("Starting text analysis...")
+    updated_props = False
 
     comprehend = boto3.client(service_name='comprehend', region_name=s3ComprehendRegion)
 
-    sentiment_rsp = comprehend.detect_sentiment(Text=transcript, LanguageCode='en')
+    ##Sentiment analysis
+    if cfg["text_analysis"]["sentiment"]:
+        s3_analysis_start = time.time()
 
-    s3_sentiment_elapsed = time.time() - s3_sentiment_start
-    logger.info("Sentiment analysis completed in "
-        + str(round(s3_sentiment_elapsed, 2))
-        + " seconds"
-    )
+        sentiment_rsp = comprehend.detect_sentiment(Text=transcript, LanguageCode='en')
 
-    logger.info("Sentiment response:\n" + str(sentiment_rsp))
+        s3_analysis_elapsed = time.time() - s3_analysis_start
+        logger.info("Sentiment analysis completed in "
+            + str(round(s3_analysis_elapsed, 2))
+            + " seconds"
+        )
 
-    if sentiment_rsp["ResponseMetadata"]["HTTPStatusCode"] == 200:
-        tattle_props['sentiment'] = sentiment_rsp['Sentiment']
-        return True
+        logger.info("Sentiment response:\n" + str(sentiment_rsp))
 
-    return False
+        if sentiment_rsp["ResponseMetadata"]["HTTPStatusCode"] == 200:
+            tattle_props['sentiment'] = sentiment_rsp['Sentiment']
+            updated_props = True
+
+    ##Key phrase analysis
+    if cfg["text_analysis"]["key_phrases"]:
+        s3_analysis_start = time.time()
+
+        key_phrases_rsp = comprehend.detect_key_phrases(Text=transcript, LanguageCode='en')
+
+        s3_analysis_elapsed = time.time() - s3_analysis_start
+        logger.info("Key phrase analysis completed in "
+            + str(round(s3_analysis_elapsed, 2))
+            + " seconds"
+        )
+
+        logger.info("Key phrases response:\n" + str(key_phrases_rsp))
+
+        if key_phrases_rsp["ResponseMetadata"]["HTTPStatusCode"] == 200 and 'KeyPhrases' in key_phrases_rsp:
+            for phrase_obj in key_phrases_rsp['KeyPhrases']:
+                phrase = phrase_obj['Text']
+                if phrase and len(phrase) > 0 and not phrase in tattle_props['key_phrases']:
+                    tattle_props['key_phrases'].append(phrase)
+                    updated_props = True
+
+    return updated_props
+
+def send_slack_msg(tattle_props):
+    slack_cfg = cfg["slack"]
+    slack_webhook_url = slack_cfg["webhook_url"]
+    slack_channel = slack_cfg["channel"]
+    slack_username = slack_cfg["username"]
+    slack_icon_url = slack_cfg["icon_url"]
+    slack_icon_emoji = slack_cfg["icon_emoji"]
+
+    tattle_id = tattle_props["id"]
+    tattle_timestamp = tattle_props["timestamp"]
+    tattle_recording_url = tattle_props["rec_url"]
+    tattle_recording_public_url = tattle_props["rec_public_url"]
+    tattle_recording_duration = tattle_props["rec_duration"]
+    tattle_transcript = tattle_props["transcript"]
+    tattle_sentiment = tattle_props["sentiment"]
+    tattle_key_phrases = tattle_props["key_phrases"]
+
+    #good, warning, danger
+    color = "good"
+    if tattle_sentiment:
+        if tattle_sentiment == "MIXED":
+            tattle_sentiment = "Mixed"
+            color = "warning"
+        elif tattle_sentiment == "POSITIVE":
+            tattle_sentiment = "Positive"
+            color = "green"
+        elif tattle_sentiment == "NEUTRAL":
+            tattle_sentiment = "Neutral"
+            color = "green"
+        elif tattle_sentiment == "NEGATIVE":
+            tattle_sentiment = "Negative"
+            color = "danger"
+
+    attachments = [{}]
+    attachment = attachments[0]
+
+    attachment["mrkdwn_in"] = ["text", "pretext"]
+    attachment["pretext"] = ":heavy_minus_sign: New " + str(int(round(tattle_recording_duration))) + "s tattle @ " + tattle_timestamp
+    attachment["fallback"] = attachment["pretext"]
+    attachment["color"] = color
+
+    text_arr = []
+
+    url_link = "<" + tattle_recording_url + "|Private link (No expiration)>"
+    if tattle_recording_public_url and len(tattle_recording_public_url) > 0:
+        url_link = url_link + "  -  " + "<" + tattle_recording_public_url + "|Public link (7 day expiration)>"
+    text_arr.append(url_link)
+
+    if tattle_sentiment and len(tattle_sentiment) > 0:
+        text_arr.append("*Sentiment* " + tattle_sentiment)
+
+    if tattle_key_phrases and len(tattle_key_phrases) > 0:
+        text_arr.append("*Key Phrases* " + ", ".join(tattle_key_phrases))
+
+    if tattle_transcript and len(tattle_transcript) > 0:
+        if len(tattle_transcript) > 2000:
+            tattle_transcript = tattle_transcript[0:2000]
+        text_arr.append("*Transcript* " + tattle_transcript)
+
+    if not text_arr == None and len(text_arr) > 0:
+        text = "\n".join(text_arr)
+
+    attachment["text"] = text
+    #attachment["footer"] = "My footer"
+
+    attachments_json = json.dumps(attachments, sort_keys=True, indent=4)
+
+    slack_msg = {}
+
+    if not slack_channel == None and len(slack_channel) > 0:
+        slack_msg["channel"] = slack_channel
+    if not slack_icon_url == None and len(slack_icon_url) > 0:
+        slack_msg["icon_url"] = slack_icon_url
+    if not slack_icon_emoji == None and len(slack_icon_emoji) > 0:
+        slack_msg["icon_emoji"] = slack_icon_emoji
+    if not slack_username == None and len(slack_username) > 0:
+        slack_msg["username"] = slack_username
+
+    slack_msg["attachments"] = attachments
+    logger.info("Slack WebHook postMessage json:\n" + json.dumps(slack_msg, sort_keys=True, indent=4))
+
+    try:
+        webHook = IncomingWebhook(slack_webhook_url)
+        webHookRsp = webHook.post(slack_msg)
+        logger.info("Slack WebHook postMessage response: " + webHookRsp.text)
+
+        if not webHookRsp.ok:
+            logger.error("Slack WebHook message send failed: " + webHookRsp.text)
+    except Exception as e:
+        logger.exception("Slack WebHook message send error: " + str(e))
+
 	
 if __name__ == '__main__':
     try:
