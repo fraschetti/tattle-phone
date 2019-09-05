@@ -226,31 +226,30 @@ def post_capture_processing(tattle_props, base_name, rec_filename, rec_tmp_file_
         transcript_tmp_fd, transcript_tmp_file_path = mkstemp()
         os.close(transcript_tmp_fd)
 
-        s3_config = cfg["s3"]
-        s3Bucket = s3_config["Bucket"]
-        s3URLStyle = s3_config["URLStyle"]
-        s3ComprehendRegion = s3_config["ComprehendRegion"]
+        aws_config = cfg["aws"]
+        aws_comprehend_region = aws_config["comprehend_region"]
+        s3_bucket = aws_config["s3_bucket"]
 
         logger.info("Uploading recording to S3: " + rec_filename)
-        s3_url = upload_to_s3(rec_filename, rec_tmp_file_path, s3Bucket, s3URLStyle)
+        s3_url = upload_to_s3(rec_filename, rec_tmp_file_path, s3_bucket)
         if s3_url:
             tattle_props['rec_url'] = s3_url
 
-            s3_public_url = get_s3_presigned_url(rec_filename, s3Bucket)
+            s3_public_url = get_s3_presigned_url(rec_filename, s3_bucket)
             if s3_public_url:
                 tattle_props['rec_public_url'] = s3_public_url
 
-        upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
+            upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3_bucket)
 
-        if cfg["text_analysis"]["transcription"]:
-            transcription = transcribe_recording(transcript_filename, transcript_tmp_file_path, s3_url, s3Bucket, tattle_props)
-            if transcription and len(transcription) > 0:
-                upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
+            if cfg["text_analysis"]["transcription"]:
+                transcription = transcribe_recording(transcript_filename, transcript_tmp_file_path, s3_url, s3_bucket, tattle_props)
+                if transcription and len(transcription) > 0:
+                    upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3_bucket)
 
-            if analyze_text(tattle_props, transcription, s3ComprehendRegion):
-                upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
+                if analyze_text(tattle_props, transcription, aws_comprehend_region):
+                    upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3_bucket)
 
-        send_slack_msg(tattle_props)
+            send_slack_msg(tattle_props)
 
     	logger.info("Finished post-recording work")
         logger.info("Final summary JSON document: \n" + json.dumps(tattle_props, sort_keys=True, indent=4))
@@ -264,23 +263,23 @@ def post_capture_processing(tattle_props, base_name, rec_filename, rec_tmp_file_
         if transcript_tmp_file_path:
             os.remove(transcript_tmp_file_path)
 
-def upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3Bucket, s3URLStyle):
+def upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3_bucket):
     with open(props_tmp_file_path, 'w') as out_file:
         out_file.write(json.dumps(tattle_props, sort_keys=True, indent=4))
 
     logger.info("Uploading tattle summary JSON document to S3: " + props_filename)
 
-    upload_to_s3(props_filename, props_tmp_file_path, s3Bucket, s3URLStyle)
+    upload_to_s3(props_filename, props_tmp_file_path, s3_bucket)
 
-def upload_to_s3(upload_filename, local_file_path, s3Bucket, s3URLStyle):
+def upload_to_s3(upload_filename, local_file_path, s3_bucket):
     try:
         logger.info("Uploading file to S3")
 
         s3_upload_start = time.time()
 
         s3_client = boto3.client('s3')
-        s3UploadRsp = s3_client.upload_file(local_file_path, s3Bucket, upload_filename)
-        ##s3UploadRsp = s3_client.upload_file(local_file_path, s3Bucket, upload_filename, ExtraArgs={'ACL': 'public-read'})
+        s3UploadRsp = s3_client.upload_file(local_file_path, s3_bucket, upload_filename)
+        ##s3UploadRsp = s3_client.upload_file(local_file_path, s3_bucket, upload_filename, ExtraArgs={'ACL': 'public-read'})
 
         logger.info("S3 upload response: " + str(s3UploadRsp))
         s3_upload_elapsed = time.time() - s3_upload_start
@@ -289,10 +288,7 @@ def upload_to_s3(upload_filename, local_file_path, s3Bucket, s3URLStyle):
             + " seconds"
         )
 
-        if s3URLStyle and s3URLStyle == "VIRTUAL":
-            s3_url = "https://" + s3Bucket + ".s3.amazonaws.com/" + upload_filename
-        else:
-            s3_url = "https://s3.amazonaws.com/" + s3Bucket + "/" + upload_filename
+        s3_url = "https://" + s3_bucket + ".s3.amazonaws.com/" + upload_filename
 
         logger.info("S3 URL: " + s3_url)
         return s3_url
@@ -301,14 +297,14 @@ def upload_to_s3(upload_filename, local_file_path, s3Bucket, s3URLStyle):
     except Exception:
         logger.exception("AWS S3 upload error (Generic)")
 
-def get_s3_presigned_url(filename, s3Bucket):
+def get_s3_presigned_url(filename, s3_bucket):
     try:
         logger.info("Fetching S3 presigned URL for: " + filename)
 
         s3_start = time.time()
 
         s3_client = boto3.client('s3')
-        s3PresignedUrlRsp = s3_client.generate_presigned_url('get_object', Params={'Bucket': s3Bucket, 'Key': filename}, ExpiresIn=604800)
+        s3PresignedUrlRsp = s3_client.generate_presigned_url('get_object', Params={'Bucket': s3_bucket, 'Key': filename}, ExpiresIn=604800)
 
         logger.info("S3 presigned URL response: " + str(s3PresignedUrlRsp))
         s3_elapsed = time.time() - s3_start
@@ -323,7 +319,7 @@ def get_s3_presigned_url(filename, s3Bucket):
     except Exception:
         logger.exception("AWS S3 upload error (Generic)")
 
-def transcribe_recording(transcript_name, transcript_file_path, s3_url, s3Bucket, tattle_props):
+def transcribe_recording(transcript_name, transcript_file_path, s3_url, s3_bucket, tattle_props):
     try:
         logger.info("Starting transcribe job - " + s3_url)
 
@@ -337,7 +333,7 @@ def transcribe_recording(transcript_name, transcript_file_path, s3_url, s3Bucket
             Media={'MediaFileUri': job_uri},
             MediaFormat='wav',
             LanguageCode='en-US',
-            OutputBucketName=s3Bucket
+            OutputBucketName=s3_bucket
         )
 
         while True:
@@ -363,7 +359,7 @@ def transcribe_recording(transcript_name, transcript_file_path, s3_url, s3Bucket
             s3_client = boto3.client('s3')
 
             s3_download_start = time.time()
-            s3DownloadRsp = s3_client.download_file(s3Bucket, s3_transcript_filename, transcript_file_path)
+            s3DownloadRsp = s3_client.download_file(s3_bucket, s3_transcript_filename, transcript_file_path)
 
             logger.info("S3 download response: " + str(s3DownloadRsp))
             s3_download_elapsed = time.time() - s3_download_start
@@ -388,7 +384,7 @@ def transcribe_recording(transcript_name, transcript_file_path, s3_url, s3Bucket
 
     return None
 
-def analyze_text(tattle_props, transcript, s3ComprehendRegion):
+def analyze_text(tattle_props, transcript, aws_comprehend_region):
     if not transcript:
         return False
         
@@ -397,14 +393,14 @@ def analyze_text(tattle_props, transcript, s3ComprehendRegion):
     if len(transcript) == 0:
         return False
 
-    if s3ComprehendRegion == None or len(s3ComprehendRegion.strip()) == 0:
-        logger.info("Skipping sentiment analysis as no AWS comprehend region has been configured")
+    if aws_comprehend_region == None or len(aws_comprehend_region.strip()) == 0:
+        logger.info("Skipping sentiment analysis as no AWS region has been configured")
         return False
 
     logger.info("Starting text analysis...")
     updated_props = False
 
-    comprehend = boto3.client(service_name='comprehend', region_name=s3ComprehendRegion)
+    comprehend = boto3.client(service_name='comprehend', region_name=aws_comprehend_region)
 
     ##Sentiment analysis
     if cfg["text_analysis"]["sentiment"]:
