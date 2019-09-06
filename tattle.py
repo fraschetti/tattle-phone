@@ -34,13 +34,13 @@ logger.addHandler(console_handler)
 cfg = None
 handset_pin = None
 led_pin = None
-recording_max_occurred = False
+need_receiver_reset = False #Requires the reciver to be 'hung up' before the next recording
 
 def main():
         global cfg
         global handset_pin
         global led_pin
-        global recording_max_occurred
+        global need_receiver_reset 
 
 	p = pyaudio.PyAudio()
 	device_count = p.get_device_count()
@@ -89,6 +89,10 @@ def main():
 
         logged_waiting_msg = False
 
+        if is_phone_off_hook():
+            logger.warn("Receiver initial state is off the hook. Preventing false recording on start")
+            need_receiver_reset = True
+
         while True:
             try:
                 if not logged_waiting_msg:
@@ -101,11 +105,11 @@ def main():
 
                 if is_phone_off_hook():
                     #Need to wait until the reciver is hung up again before a new recording can occur
-                    if not recording_max_occurred:
+                    if not need_receiver_reset:
                         logged_waiting_msg = False
                         capture_audio()
                 else:
-                    recording_max_occurred = False
+                    need_receiver_reset = False
             except Exception:
                 logger.exception("Main loop error")
 
@@ -113,7 +117,7 @@ def main():
 
 
 def is_phone_off_hook():
-    return not GPIO.input(handset_pin)
+    return GPIO.input(handset_pin)
 
 
 ##TODO CHRIS Encode to MP3 if it makes sense (currently doesn't)
@@ -125,7 +129,7 @@ def capture_audio():
     rec_tmp_file_path = None
 
     try:
-        global recording_max_occurred
+        global need_receiver_reset 
 
         base_name = "tattle_" + time.strftime('%Y%m%d_%H%M%S')
 
@@ -182,7 +186,7 @@ def capture_audio():
                 if max_met:
     	            logger.info("Aborting recording due to max duration (" + str(recording_max_secs) + ")")
                     continue_recording = False
-                    recording_max_occurred = True
+                    need_receiver_reset = True
 
     	    logger.info("Stopping recording")
     	    rec.stop_recording()
