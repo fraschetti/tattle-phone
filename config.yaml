@@ -1,0 +1,19 @@
+handset:
+        handset_pin: 17 # Broadcom pin 17 (P1 pin 11)
+recording:
+        min_secs: 5
+        max_secs: 30
+        led_pin: 4
+text_analysis:
+        transcription: True
+        sentiment: True
+        key_phrases: True
+aws:
+        comprehend_region: <enter your aws region here, s3 should match for comprehend and transcribe>
+        s3_bucket: <enter your s3 bucket here>
+slack:
+        webhook_url: <enter your URL here>
+        channel: tattle-phone
+        username: Tattle Phone
+        icon_url:
+        icon_emoji: ':telephone_receiver:'
