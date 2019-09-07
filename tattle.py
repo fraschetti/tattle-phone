@@ -122,6 +122,9 @@ def is_phone_off_hook():
 
 ##TODO CHRIS Encode to MP3 if it makes sense (currently doesn't)
 ##TODO CHRIS move from path aws credentials to yaml settings
+##TODO CHRIS flash LED on startup
+##TODO CHRIS send slack msssage on service start/stop ?
+##RODO CHRIS send initial slack msg immediately and updates as post-processing occurs
 ##TODO CHRIS https://www.instructables.com/id/Disable-the-Built-in-Sound-Card-of-Raspberry-Pi/
 ##TODO CHRIS https://aws.amazon.com/blogs/database/indexing-metadata-in-amazon-elasticsearch-service-using-aws-lambda-and-python/
 ##TODO CHRIS Doc disabling built-in audio - https://www.raspberrypi.org/forums/viewtopic.php?t=37873
@@ -472,10 +475,10 @@ def send_slack_msg(tattle_props):
             color = "warning"
         elif tattle_sentiment == "POSITIVE":
             tattle_sentiment = "Positive"
-            color = "green"
+            color = "good"
         elif tattle_sentiment == "NEUTRAL":
             tattle_sentiment = "Neutral"
-            color = "green"
+            color = "good"
         elif tattle_sentiment == "NEGATIVE":
             tattle_sentiment = "Negative"
             color = "danger"
