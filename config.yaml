@@ -1,5 +1,5 @@
 handset:
-        handset_pin: 17 # Broadcom pin 17 (P1 pin 11)
+        handset_pin: 17
 recording:
         min_secs: 5
         max_secs: 30
