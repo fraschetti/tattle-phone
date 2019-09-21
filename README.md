@@ -1,5 +1,5 @@
 # Tattle Phone
-A RaspberryPi enabled tattle phone capable of recording voice messages, converting them to text, & making everything available to you via Slack.
+A RaspberryPi enabled tattle phone capable of recording voice messages, converting them to text, & making everything available to you via Slack. Originally inspired by this [No Fair! - This American Life](https://www.thisamericanlife.org/672/no-fair/prologue-2) segment.
 
 TODO Slack screen shot
 
