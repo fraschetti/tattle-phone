@@ -3,6 +3,8 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 
 ![Slack examples](/assets/Tattle_Phone_Slack_Examples.png?raw=true)
 
+![Tattle phone](/assets/Tattle_Phone_Hero.png?raw=true)
+
 **What's actually happens:**
 - Picking up the telephone handset triggers the Python logic to start recording
 - After the handset is placed back on the phone (or a maximum recording duration is reached), the recording is uploaded to Amazon S3
@@ -14,6 +16,7 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 - A telephone with an analog receiver (two wires for the speaker & two wires for the microphone)
 - A status LED (optional)
 - 1k resistor for the status LED (optional - only required for the status LED)
+- TODO USB adapter
 
 ## Wiring diagram
 ![Wiring diagram](/assets/Tattle_Phone_Circuit.png?raw=true)
