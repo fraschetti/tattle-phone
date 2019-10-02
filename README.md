@@ -13,30 +13,38 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 
 ## BOM (Bill of Materials)
 - Raspberry Pi Zero W or any other WiFi enabled Raspberry Pi
-- A telephone with an analog receiver (two wires for the speaker & two wires for the microphone)
-- A status LED (optional)
-- 1k resistor for the status LED (optional - only required for the status LED)
-- TODO USB adapter
+- Telephone with an analog receiver (two wires for the speaker & two wires for the microphone)
+- Rasperry Pi compatible USB audio adapter
+- [Optional] Status LED
+- [Optional] 1k resistor for the status LED (only required if using a status LED)
+- [Optional] PCB Screw Terminal Block (useful when prototyping)
+- [Optional] 3.5mm 1/8 male headphone jack to terminal block adapter  (useful when prototyping)
+- [Optional] Electret microphone (useful for prototyping)
+
+#### Microphone protoype
+- Search for "3.5mm audio terminal block" on eBay or AliExpress
+- This prototype provided better quality recordings than my teleophone receiver implementation
+![Microphone prototype](/assets/Tattle_Phone_Microphone_Prototype.png?raw=true)
+
+#### USB audio adapter
+- Search for "USB Sound Card Adapter" on eBay or AliExpress
+![USB Audio Adapter](/assets/Tattle_Phone_USB_Audio_Adapter.png?raw=true)
+
+#### PCB screw terminal block
+- Search for "2.54mm PCB Screw Terminal Block" on eBay or AliExpress
+- A six pole terminal block will satisfy the requirements of this project with room for future enhancements
+![PCB Screw Terminal Block](/assets/Tattle_Phone_PCB_Screw_Terminal_Block.png?raw=true)
+
+
 
 ## Wiring diagram
 ![Wiring diagram](/assets/Tattle_Phone_Circuit.png?raw=true)
 
 ## Getting started
-TODO
-### Phone hardware
-
-![Microphone prototype](/assets/Tattle_Phone_Microphone_Prototype.png?raw=true)
-
-### Pi Hardware
-
-![USB Audio Adapter](/assets/Tattle_Phone_USB_Audio_Adapter.png?raw=true)
-
-![PCB Screw Terminal Block](/assets/Tattle_Phone_PCB_Screw_Terminal_Block.png?raw=true)
 
 ![Internals Example](/assets/Tattle_Phone_Internals_Example.png?raw=true)
 
 ### Software
-
 - Install the prequisites
   ```
   sudo apt-get install libportaudio0 libportaudio2 libportaudiocpp0 portaudio19-dev
