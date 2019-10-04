@@ -14,6 +14,7 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 ## BOM (Bill of Materials)
 - Raspberry Pi Zero W or any other WiFi enabled Raspberry Pi
 - Telephone with an analog receiver (two wires for the speaker & two wires for the microphone)
+  - Telephones with the keypad in the handset are likely going to be a pain to use as the cord doesn't contain the microphone wires you'd want to leverage on the Pi you'll be mounting into the telephone base)
 - Rasperry Pi compatible USB audio adapter
 - [Optional] Status LED
 - [Optional] 1k resistor for the status LED (only required if using a status LED)
@@ -28,6 +29,8 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 
 #### USB audio adapter
 - Search for "USB Sound Card Adapter" on eBay or AliExpress
+- This model comes with a rather annoying red status LED which illuminates whenever the adapter is in use
+  - It was literally a two minute task to slice open the case with a utility knife, desolder the surface mount LED, and put the case back together with a bit of cyanoacrylate ("super glue") 
 ![USB Audio Adapter](/assets/Tattle_Phone_USB_Audio_Adapter.png?raw=true)
 
 #### PCB screw terminal block
@@ -35,14 +38,8 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 - A six pole terminal block will satisfy the requirements of this project with room for future enhancements
 ![PCB Screw Terminal Block](/assets/Tattle_Phone_PCB_Screw_Terminal_Block.png?raw=true)
 
-
-
 ## Wiring diagram
 ![Wiring diagram](/assets/Tattle_Phone_Circuit.png?raw=true)
-
-## Getting started
-
-![Internals Example](/assets/Tattle_Phone_Internals_Example.png?raw=true)
 
 ### Software
 - Install the prequisites
@@ -76,3 +73,11 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
     ```
 
 TODO add power saving steps (leds + hdmi)
+
+## My implementation
+I was putting the finishing touches on the software when a last minute business trip popped up. I wanted to give my oldest daughter a fun way to contact me while I was away so I cobbled together a working tattle phone for her to use. It was a success!
+![Internals Example](/assets/Tattle_Phone_Internals_Example.png?raw=true)
+- It was fairly easy to use a multimeter to determine which wires I could leverage to detect the phone haved been lifted off the base. The other unncessary wires from the switch were trimmed to reduce clutter
+- Luckily the phone's board was only a single layer and utilized through-hole components and that made quick work of leveraging the phone's existing components
+  - It was easy enough to spot which pins were handling the microphone inputs and the existing on-board status LED for the phone.
+  - I soldered in a handful of wires, cut the traces to isolate the microphone and LED from the rest of the board, and we were good to go.
