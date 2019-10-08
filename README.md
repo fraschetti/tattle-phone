@@ -9,6 +9,7 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 - Picking up the telephone handset triggers the Python logic to start recording
 - After the handset is placed back on the phone (or a maximum recording duration is reached), the recording is uploaded to Amazon S3
 - The recording is then optionally passed through Amazon Transcribe (voice --> text) and Amazon Comprehend (text --> sentiment) for further analysis
+  - NOTE: Both Transcribe and Comprehend have free usage plans that should be more than sufficient for this project
 - After all processing is complete, a Slack message is posted with a link to the recording and transcript and sentiment information if enabled.
 
 ## BOM (Bill of Materials)
@@ -72,7 +73,9 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
     sudo systemctl start tattle.service
     ```
 
-TODO add power saving steps (leds + hdmi)
+- TODO add power saving steps (leds + hdmi)
+  - https://www.raspberrypi.org/forums/viewtopic.php?t=116797
+  - https://www.jeffgeerling.com/blogs/jeff-geerling/raspberry-pi-zero-conserve-energy
 
 ## My implementation
 I was putting the finishing touches on the software when a last minute business trip popped up. I wanted to give my oldest daughter a fun way to contact me while I was away so I cobbled together a working tattle phone for her to use. It was a success!
