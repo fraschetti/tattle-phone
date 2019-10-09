@@ -79,6 +79,7 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 
 ## My implementation
 I was putting the finishing touches on the software when a last minute business trip popped up. I wanted to give my oldest daughter a fun way to contact me while I was away so I cobbled together a working tattle phone for her to use. It was a success!
+
 ![Internals Example](/assets/Tattle_Phone_Internals_Example.png?raw=true)
 - It was fairly easy to use a multimeter to determine which wires I could leverage to detect the phone haved been lifted off the base. The other unncessary wires from the switch were trimmed to reduce clutter
 - Luckily the phone's board was only a single layer and utilized through-hole components and that made quick work of leveraging the phone's existing components
