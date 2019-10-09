@@ -42,7 +42,7 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 ## Wiring diagram
 ![Wiring diagram](/assets/Tattle_Phone_Circuit.png?raw=true)
 
-### Software
+## Software
 - Install the prequisites
   ```
   sudo apt-get install libportaudio0 libportaudio2 libportaudiocpp0 portaudio19-dev
@@ -76,6 +76,11 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 - TODO add power saving steps (leds + hdmi)
   - https://www.raspberrypi.org/forums/viewtopic.php?t=116797
   - https://www.jeffgeerling.com/blogs/jeff-geerling/raspberry-pi-zero-conserve-energy
+  
+## Power savings
+Unfortunately none of the Raspberry Pi boards have any power saving modes and the best we can do is disable components we don't need. Assuming you're leveraging the onboard WiFI, you can still disable the Bluetooth hardware, HDMI output, and onboard status LEDs.
+
+- A great resource for disabling the onboard WiFI and/or Bluetooth can be found [here](https://blog.sleeplessbeastie.eu/2018/12/31/how-to-disable-onboard-wifi-and-bluetooth-on-raspberry-pi-3/)
 
 ## My implementation
 I was putting the finishing touches on the software when a last minute business trip popped up. I wanted to give my oldest daughter a fun way to contact me while I was away so I cobbled together a working tattle phone for her to use. It was a success!
@@ -85,3 +90,7 @@ I was putting the finishing touches on the software when a last minute business 
 - Luckily the phone's board was only a single layer and utilized through-hole components and that made quick work of leveraging the phone's existing components
   - It was easy enough to spot which pins were handling the microphone inputs and the existing on-board status LED for the phone.
   - I soldered in a handful of wires, cut the traces to isolate the microphone and LED from the rest of the board, and we were good to go.
+
+
+## What would a v2 look like?
+The Pi offers a lot of convienance but it is wildly overpowered for this project and even with the above *Power savings*, is going to waste a lot of energy * money. If I were to revisit this project, I'd likely start over using an ESP32 or similar microcontroller with built-in WiFi, processing power, and deep-sleep power saving modes (similar to what I used on my [ESP8266-TempSensor](https://github.com/fraschetti/ESP8266-TempSensor) project).
