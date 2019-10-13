@@ -72,16 +72,20 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
     sudo systemctl enable tattle.service
     sudo systemctl start tattle.service
     ```
-
-- TODO add power saving steps (leds + hdmi)
-  - https://www.raspberrypi.org/forums/viewtopic.php?t=116797
-  - https://www.jeffgeerling.com/blogs/jeff-geerling/raspberry-pi-zero-conserve-energy
-  
 ## Power savings
-Unfortunately none of the Raspberry Pi boards have any power saving modes and the best we can do is disable components we don't need. Assuming you're leveraging the onboard WiFI, you can still disable the Bluetooth hardware, HDMI output, and onboard status LEDs.
+Unfortunately none of the Raspberry Pi boards have any power saving modes and the best we can do is disable components we don't need. Assuming you're leveraging the on-board WiFI, you can still disable the Bluetooth hardware, HDMI output, and on-board status LEDs.
 
 - A great resource for disabling the onboard WiFI and/or Bluetooth can be found [here](https://blog.sleeplessbeastie.eu/2018/12/31/how-to-disable-onboard-wifi-and-bluetooth-on-raspberry-pi-3/)
-
+- To disable the on-board HDMI (and with a bit of work - the on-board LEDs), you might consider leveraging **tattle_power_savings.sh**
+     - The command below assume the tattle-phone project have been deployed at **/home/pi/tattle-phone**
+     ```
+    sudo chmod 775 /home/pi/tattle-phone/tattle_power_savings.sh
+    sudo sed -i -e '$i /home/pi/tattle-phone/tattle_power_savings.sh\n' rc.local
+    ```
+    - The output of the script can be validated after each reboot
+    ```
+    cat /var/log/boot.log | grep tattle-phone
+    ```
 ## My implementation
 I was putting the finishing touches on the software when a last minute business trip popped up. I wanted to give my oldest daughter a fun way to contact me while I was away so I cobbled together a working tattle phone for her to use. It was a success!
 
