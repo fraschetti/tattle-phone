@@ -80,7 +80,7 @@ Unfortunately none of the Raspberry Pi boards have any power saving modes and th
      - The command below assume the tattle-phone project have been deployed at **/home/pi/tattle-phone**
      ```
     sudo chmod 775 /home/pi/tattle-phone/tattle_power_savings.sh
-    sudo sed -i -e '$i /home/pi/tattle-phone/tattle_power_savings.sh\n' rc.local
+    sudo sed -i -e '$i /home/pi/tattle-phone/tattle_power_savings.sh\n' /etc/rc.local
     ```
     - The output of the script can be validated after each reboot
     ```
