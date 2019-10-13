@@ -76,7 +76,7 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 Unfortunately none of the Raspberry Pi boards have any power saving modes and the best we can do is disable components we don't need. Assuming you're leveraging the on-board WiFI, you can still disable the Bluetooth hardware, HDMI output, and on-board status LEDs.
 
 - A great resource for disabling the onboard WiFI and/or Bluetooth can be found [here](https://blog.sleeplessbeastie.eu/2018/12/31/how-to-disable-onboard-wifi-and-bluetooth-on-raspberry-pi-3/)
-- To disable the on-board HDMI (and with a bit of work - the on-board LEDs), you might consider leveraging **tattle_power_savings.sh**
+- To disable the on-board HDMI (and with a bit of work - the on-board LEDs), you might consider leveraging [tattle_power_savings.sh](tattle_power_savings.sh)
      - The command below assume the tattle-phone project have been deployed at **/home/pi/tattle-phone**
      ```
     sudo chmod 775 /home/pi/tattle-phone/tattle_power_savings.sh
