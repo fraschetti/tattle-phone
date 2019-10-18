@@ -76,15 +76,11 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 Unfortunately none of the Raspberry Pi boards have any power saving modes and the best we can do is disable components we don't need. Assuming you're leveraging the on-board WiFI, you can still disable the Bluetooth hardware, HDMI output, and on-board status LEDs.
 
 - A great resource for disabling the onboard WiFI and/or Bluetooth can be found [here](https://blog.sleeplessbeastie.eu/2018/12/31/how-to-disable-onboard-wifi-and-bluetooth-on-raspberry-pi-3/)
-- To disable the on-board HDMI (and with a bit of work - the on-board LEDs), you might consider leveraging **tattle_power_savings.sh**
+- To disable the on-board HDMI (and with a bit of work - the on-board LEDs), you might consider leveraging [tattle_power_savings.sh](tattle_power_savings.sh)
      - The command below assume the tattle-phone project have been deployed at **/home/pi/tattle-phone**
      ```
     sudo chmod 775 /home/pi/tattle-phone/tattle_power_savings.sh
     sudo sed -i -e '$i /home/pi/tattle-phone/tattle_power_savings.sh\n' /etc/rc.local
-    ```
-    - The output of the script can be validated after each reboot
-    ```
-    cat /var/log/boot.log | grep tattle-phone
     ```
 ## My implementation
 I was putting the finishing touches on the software when a last minute business trip popped up. I wanted to give my oldest daughter a fun way to contact me while I was away so I cobbled together a working tattle phone for her to use. It was a success!
@@ -94,7 +90,6 @@ I was putting the finishing touches on the software when a last minute business 
 - Luckily the phone's board was only a single layer and utilized through-hole components and that made quick work of leveraging the phone's existing components
   - It was easy enough to spot which pins were handling the microphone inputs and the existing on-board status LED for the phone.
   - I soldered in a handful of wires, cut the traces to isolate the microphone and LED from the rest of the board, and we were good to go.
-
 
 ## What would a v2 look like?
 The Pi offers a lot of convienance but it is wildly overpowered for this project and even with the above *Power savings*, is going to waste a lot of energy * money. If I were to revisit this project, I'd likely start over using an ESP32 or similar microcontroller with built-in WiFi, processing power, and deep-sleep power saving modes (similar to what I used on my [ESP8266-TempSensor](https://github.com/fraschetti/ESP8266-TempSensor) project).
