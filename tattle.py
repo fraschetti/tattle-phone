@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import sys
 import logging
 import logging.handlers as handlers
 import yaml
@@ -11,6 +12,7 @@ import time
 import threading
 import boto3
 import botocore
+import requests
 from sound_recorder import SoundRecorder
 from datetime import datetime
 from tempfile import mkstemp
@@ -35,6 +37,8 @@ cfg = None
 handset_pin = None
 led_pin = None
 need_receiver_reset = False #Requires the reciver to be 'hung up' before the next recording
+
+run_test = False #Run once and exit
 
 def main():
         global cfg
@@ -103,11 +107,14 @@ def main():
 	            logger.info("")
                     logged_waiting_msg = True
 
-                if is_phone_off_hook():
+                if is_phone_off_hook() or run_test:
                     #Need to wait until the reciver is hung up again before a new recording can occur
                     if not need_receiver_reset:
                         logged_waiting_msg = False
                         capture_audio()
+
+                    if run_test:
+                        need_receiver_reset = True #Prevent multiple recording during the test cycle
                 else:
                     need_receiver_reset = False
             except Exception:
@@ -250,6 +257,7 @@ def post_capture_processing(tattle_props, base_name, rec_filename, rec_tmp_file_
 
             if cfg["text_analysis"]["transcription"]:
                 transcription = transcribe_recording(transcript_filename, transcript_tmp_file_path, s3_url, s3_bucket, tattle_props)
+
                 if transcription and len(transcription) > 0:
                     upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3_bucket)
 
@@ -269,6 +277,9 @@ def post_capture_processing(tattle_props, base_name, rec_filename, rec_tmp_file_
             os.remove(props_tmp_file_path)
         if transcript_tmp_file_path:
             os.remove(transcript_tmp_file_path)
+
+        if run_test: #Quit after test
+            sys.exit(0)
 
 def upload_props_to_s3(tattle_props, props_filename, props_tmp_file_path, s3_bucket):
     with open(props_tmp_file_path, 'w') as out_file:
@@ -458,6 +469,9 @@ def send_slack_msg(tattle_props):
     slack_icon_url = slack_cfg["icon_url"]
     slack_icon_emoji = slack_cfg["icon_emoji"]
 
+    pipedream_cfg = cfg["pipedream"]
+    pipedream_webhook_url = pipedream_cfg["webhook_url"]
+
     tattle_id = tattle_props["id"]
     tattle_timestamp = tattle_props["timestamp"]
     tattle_recording_url = tattle_props["rec_url"]
@@ -466,6 +480,8 @@ def send_slack_msg(tattle_props):
     tattle_transcript = tattle_props["transcript"]
     tattle_sentiment = tattle_props["sentiment"]
     tattle_key_phrases = tattle_props["key_phrases"]
+
+    pipedream_msg = {}
 
     #good, warning, danger
     color = "good"
@@ -491,6 +507,11 @@ def send_slack_msg(tattle_props):
     attachment["fallback"] = attachment["pretext"]
     attachment["color"] = color
 
+    pipedream_msg["timestamp"] = tattle_timestamp
+    pipedream_msg["duration"] = round(tattle_recording_duration, 2)
+    pipedream_msg["tattle_url_private"] = tattle_recording_url
+    pipedream_msg["tattle_url_public"] = tattle_recording_public_url
+
     text_arr = []
 
     url_link = "<" + tattle_recording_url + "|Private link (No expiration)>"
@@ -500,14 +521,17 @@ def send_slack_msg(tattle_props):
 
     if tattle_sentiment and len(tattle_sentiment) > 0:
         text_arr.append("*Sentiment* " + tattle_sentiment)
+        pipedream_msg["sentiment"] = tattle_sentiment
 
     if tattle_key_phrases and len(tattle_key_phrases) > 0:
         text_arr.append("*Key Phrases* " + ", ".join(tattle_key_phrases))
+        pipedream_msg["key_phrases"] = tattle_key_phrases
 
     if tattle_transcript and len(tattle_transcript) > 0:
         if len(tattle_transcript) > 2000:
             tattle_transcript = tattle_transcript[0:2000]
         text_arr.append("*Transcript* " + tattle_transcript)
+        pipedream_msg["transcript"] = tattle_transcript
 
     if not text_arr == None and len(text_arr) > 0:
         text = "\n".join(text_arr)
@@ -529,9 +553,10 @@ def send_slack_msg(tattle_props):
         slack_msg["username"] = slack_username
 
     slack_msg["attachments"] = attachments
-    logger.info("Slack WebHook postMessage json:\n" + json.dumps(slack_msg, sort_keys=True, indent=4))
 
     try:
+        logger.info("Slack WebHook postMessage json:\n" + json.dumps(slack_msg, sort_keys=True, indent=4))
+
         webHook = IncomingWebhook(slack_webhook_url)
         webHookRsp = webHook.post(slack_msg)
         logger.info("Slack WebHook postMessage response: " + webHookRsp.text)
@@ -541,7 +566,19 @@ def send_slack_msg(tattle_props):
     except Exception as e:
         logger.exception("Slack WebHook message send error: " + str(e))
 
-	
+    try:
+        logger.info("Pipedream WebHook post json:\n" + json.dumps(pipedream_msg, sort_keys=True, indent=4))
+
+        webHookRsp= requests.post(pipedream_webhook_url, data=json.dumps(pipedream_msg),
+            headers={'Content-Type': 'application/json'}
+        )
+        logger.info("Pipedream WebHook post response: " + webHookRsp.text)
+
+        if not webHookRsp.ok:
+            logger.error("Pipedream WebHook message send failed: " + webHookRsp.text)
+    except Exception as e:
+        logger.exception("Pipedream WebHook message send error: " + str(e))
+
 if __name__ == '__main__':
     try:
 	main()
