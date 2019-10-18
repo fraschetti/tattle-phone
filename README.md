@@ -1,5 +1,5 @@
 # Tattle Phone
-A RaspberryPi enabled tattle phone capable of recording voice messages, converting them to text, & making everything available to you via Slack. Originally inspired by this [No Fair! - This American Life](https://www.thisamericanlife.org/672/no-fair/prologue-2) segment.
+A RaspberryPi enabled tattle phone capable of recording voice messages, converting them to text, & making everything available to you via [Slack](https://slack.com) or [Pipedream](https://pipedream.com). Originally inspired by this [No Fair! - This American Life](https://www.thisamericanlife.org/672/no-fair/prologue-2) segment.
 
 ![Tattle phone](/assets/Tattle_Phone_Hero.png?raw=true)
 
@@ -10,7 +10,7 @@ A RaspberryPi enabled tattle phone capable of recording voice messages, converti
 - After the handset is placed back on the phone (or a maximum recording duration is reached), the recording is uploaded to Amazon S3
 - The recording is then optionally passed through Amazon Transcribe (voice --> text) and Amazon Comprehend (text --> sentiment) for further analysis
   - NOTE: Both Transcribe and Comprehend have free usage plans that should be more than sufficient for this project
-- After all processing is complete, a Slack message is posted with a link to the recording and transcript and sentiment information if enabled.
+- After all processing is complete, a Slack or Pipedream message is posted with a link to the recording and transcript and sentiment information if enabled.
 
 ## BOM (Bill of Materials)
 - Raspberry Pi Zero W or any other WiFi enabled Raspberry Pi
