@@ -17,3 +17,5 @@ slack:
         username: Tattle Phone
         icon_url:
         icon_emoji: ':telephone_receiver:'
+pipedream:
+        webhook_url: <enter your URL here>
